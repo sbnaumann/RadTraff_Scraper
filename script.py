@@ -5,9 +5,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import argparse
 import xlrd
-import openpyxl
 import datetime
+import openpyxl
 from openpyxl import Workbook
+from openpyxl.utils.cell import get_column_letter
 
 def search(filename, urls, month, year):
 	filename = filename[0]
@@ -37,17 +38,22 @@ def search(filename, urls, month, year):
 
 	# Open file provided and get search String
 	nti_tools_book = openpyxl.load_workbook(filename)
-	sheet = nti_tools_book.active
+	readSheet = nti_tools_book.active
 
 	print("Loaded a Workbook")
 
-	for row in range(1, sheet.max_row + 1):
+	wb = Workbook()
+	workingSheet = wb.active
+	sheetHeaders = ["Page Title", "URL"]
+
+	for row in range(1, readSheet.max_row + 1):
 		browser.get("http://www.google.com")
 		print("Opened a browser")
 
 
-		print(sheet.max_row)
-		initial_search = sheet.cell(row, 1).value
+		print(readSheet.max_row)
+		currentTool = readSheet.cell(row, 1).value
+		initial_search = currentTool
 		print(initial_search)
 		if urls:
 			print("There were urls")
@@ -125,25 +131,43 @@ def search(filename, urls, month, year):
 
 
 		# Search through the returned pages and print them to a file
-		file1 = open("resultsFile.txt", "w")
+		if workingSheet.title == "Sheet":
+			workingSheet.title = "Sheet " + str(row)
+		else:
+			workingSheet = wb.create_sheet("Sheet " + str(row))
 
-		pages = []
+		workingSheet.cell(1,1,value=readSheet.cell(row,1).value)
+
+		for column in range(0, len(sheetHeaders)):
+			workingSheet.cell(2, column+1, value=sheetHeaders[column])
+
+		for i in range(0, workingSheet.max_column):
+			workingSheet.column_dimensions[get_column_letter(i+1)].width = 25
+
+		rowCount = 2
+		pageLinks = []
 		for result in results:
 			hyperlinkElement = result.find_element_by_tag_name("a")
 			link = hyperlinkElement.get_attribute("href")
-			pages.append(link)
+			pageLinks.append(link)
 
-		for page in pages:
+		for page in pageLinks:
 			browser.get(page)
+			try:
+				pageTitle = browser.title
+			except:
+				pageTitle = "Unknown"
+
 			src = browser.page_source
-			matches = [search_string, "nti.org", "NTI.org", "Nuclear Threat Initiative", "nuclear threat initiative"]
+			matches = [currentTool, "nti.org", "NTI.org", "Nuclear Threat Initiative", "nuclear threat initiative"]
 			for match in matches:
 				if src.find(match) != -1:
-					file1.write("NTI Source Confirmed at this URL: ")
-					file1.write(str(page) + "\n")
+					rowCount += 1
+					workingSheet.cell(rowCount, 1, value=str(pageTitle))
+					workingSheet.cell(rowCount, 2, value=str(page))
+					break
 
-		file1.close()
-
+	wb.save('results/results.xlsx')
 	browser.quit()
 
 def argChecker():

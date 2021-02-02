@@ -32,13 +32,13 @@ def search(filename, urls, month, year):
 	# Open a chrome browser
 	browser = webdriver.Chrome(currentDir + '/chromedriver', options=options)
 
-	print(urls)
+	# print(urls)
 
 	urlArray = urls.split(",")
 
 	# Open file provided and get search String
 	nti_tools_book = openpyxl.load_workbook(filename)
-	readSheet = nti_tools_book.active
+	toolSheet = nti_tools_book.active
 
 	print("Loaded a Workbook")
 
@@ -46,22 +46,23 @@ def search(filename, urls, month, year):
 	workingSheet = wb.active
 	sheetHeaders = ["Page Title", "URL"]
 
-	for row in range(1, readSheet.max_row + 1):
+	print("Tool Count: " + str(toolSheet.max_row))
+
+	for row in range(1, toolSheet.max_row + 1):
+		print("New Tool")
 		browser.get("http://www.google.com")
 		print("Opened a browser")
 
 
-		print(readSheet.max_row)
-		currentTool = readSheet.cell(row, 1).value
+		# print(toolSheet.max_row)
+		currentTool = toolSheet.cell(row, 1).value
 		initial_search = currentTool
-		print(initial_search)
+		# print(initial_search)
 		if urls:
-			print("There were urls")
+			# print("There were urls")
 			for url in urlArray:
 				print("adding " + url + " to exception list")
 				initial_search = "-" + url + ": " + initial_search
-		# prep the string for searching
-		initial_search = initial_search.replace(' ','+')
 
 		# Go to google and enter the input into the search bar
 		searchField = browser.find_element_by_name("q")
@@ -123,6 +124,7 @@ def search(filename, urls, month, year):
 
 		# Search the resulting webpage for URLs
 		results = browser.find_elements_by_css_selector("div.g")
+		print("Match Count: " + str(len(results)))
 
 		# Print Results
 		for result in results:
@@ -136,7 +138,7 @@ def search(filename, urls, month, year):
 		else:
 			workingSheet = wb.create_sheet("Sheet " + str(row))
 
-		workingSheet.cell(1,1,value=readSheet.cell(row,1).value)
+		workingSheet.cell(1,1,value=toolSheet.cell(row,1).value)
 
 		for column in range(0, len(sheetHeaders)):
 			workingSheet.cell(2, column+1, value=sheetHeaders[column])
@@ -152,7 +154,7 @@ def search(filename, urls, month, year):
 			pageLinks.append(link)
 
 		for page in pageLinks:
-			browser.get(page)
+			browser.get("view-source:"+page)
 			try:
 				pageTitle = browser.title
 			except:
@@ -165,9 +167,11 @@ def search(filename, urls, month, year):
 					rowCount += 1
 					workingSheet.cell(rowCount, 1, value=str(pageTitle))
 					workingSheet.cell(rowCount, 2, value=str(page))
+					print("New Match")
 					break
 
 	wb.save('results/results.xlsx')
+	print("Done")
 	browser.quit()
 
 def argChecker():
